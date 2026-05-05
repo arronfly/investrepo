@@ -13,9 +13,9 @@ data/*.json
 data/*.csv
 !data/.gitkeep
 
-# Reports
-reports/*.md
-reports/*.png
+# Reports - commit reports to GitHub
+# reports/*.md
+# reports/*.png
 !reports/.gitkeep
 
 # Environment
