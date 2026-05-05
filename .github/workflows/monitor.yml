@@ -1,0 +1,78 @@
+name: Investment Monitor
+
+on:
+  schedule:
+    # 每周一早上 9 点抓取最新持仓
+    - cron: '0 9 * * 1'
+    # 每天早上 8 点检查新闻
+    - cron: '0 8 * * *'
+  workflow_dispatch:  # 支持手动触发
+  push:
+    branches: [main]
+
+jobs:
+  fetch-holdings:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          
+      - name: Fetch 13F Holdings
+        run: python src/fetch_13f.py
+        
+      - name: Fetch News
+        run: python src/news_monitor.py
+        
+      - name: Generate Report
+        run: python src/generate_report.py
+        
+      - name: Generate Visualizations
+        run: python src/visualize.py
+        
+      - name: Commit and push changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          git add data/ reports/ || true
+          
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "🤖 Auto-update: $(date +'%Y-%m-%d %H:%M')"
+            git push
+          fi
+
+  # 手动报告生成
+  generate-report:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+        
+      - name: Generate Report
+        run: |
+          python src/fetch_13f.py
+          python src/news_monitor.py
+          python src/generate_report.py
+          
+      - name: Upload Report
+        uses: actions/upload-artifact@v4
+        with:
+          name: investment-report
+          path: reports/latest.md
