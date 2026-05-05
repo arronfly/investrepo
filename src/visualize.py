@@ -23,13 +23,18 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 def load_holdings_data():
     """加载持仓数据"""
     f13f_file = DATA_DIR / "latest_13f.json"
-    
+
     if not f13f_file.exists():
         logger.warning("没有找到持仓数据")
         return None
-    
+
     with open(f13f_file, "r") as f:
-        return json.load(f)
+        data = json.load(f)
+
+    # 兼容旧格式 {"holdings": [...]} 和新格式 [...]
+    if isinstance(data, list):
+        return {"holdings": data, "company": "Berkshire Hathaway", "date": "2025-Q4"}
+    return data
 
 
 def create_pie_chart(holdings_data):
