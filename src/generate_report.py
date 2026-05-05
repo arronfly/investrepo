@@ -26,7 +26,13 @@ def load_latest_data():
     f13f_file = DATA_DIR / "latest_13f.json"
     if f13f_file.exists():
         with open(f13f_file, "r") as f:
-            data["holdings"] = json.load(f)
+            holdings = json.load(f)
+            # 兼容列表格式
+            if isinstance(holdings, list):
+                data["holdings_list"] = holdings
+                data["holdings"] = {"holdings": holdings, "date": datetime.now().strftime("%Y-%m-%d")}
+            else:
+                data["holdings"] = holdings
     
     # 新闻
     news_file = DATA_DIR / "latest_news.json"
@@ -70,15 +76,34 @@ def generate_markdown_report(data):
     
     if "holdings" in data and data["holdings"]:
         holdings = data["holdings"]
+        holdings_list = data.get("holdings_list", [])
+        
+        if isinstance(holdings, dict):
+            holdings_date = holdings.get('date', 'N/A')
+            holdings_company = holdings.get('company', 'Berkshire Hathaway')
+            holdings_items = holdings.get('holdings', [])
+        else:
+            holdings_date = 'N/A'
+            holdings_company = 'Berkshire Hathaway'
+            holdings_items = []
+        
         report += f"""
 ### 持仓明细
 
-**公司**: {holdings.get('company', 'Berkshire Hathaway')}
-**报告期**: {holdings.get('date', 'N/A')}
-
-> 📝 注: 完整持仓数据请查看 `data/latest_13f.json` 文件
+**公司**: {holdings_company}
+**报告期**: {holdings_date}
 
 """
+        if holdings_list:
+            report += f"| 股票代码 | 公司名称 | 持仓价值 | 股份数 |\n"
+            report += f"|----------|----------|----------|--------|\n"
+            for h in holdings_list[:10]:
+                value_str = f"${h.get('value', 0)/1e9:.2f}B" if h.get('value', 0) > 1e9 else f"${h.get('value', 0)/1e6:.2f}M"
+                shares_str = f"{h.get('shares', 0)/1e6:.2f}M" if h.get('shares', 0) > 1e6 else str(h.get('shares', 0))
+                report += f"| {h.get('ticker', 'N/A')} | {h.get('name', 'N/A')[:30]} | {value_str} | {shares_str} |\n"
+            report += "\n"
+        
+        report += "> 📝 注: 完整持仓数据请查看 `data/latest_13f.json` 文件\n\n"
     else:
         report += """
 > ⚠️ 暂无持仓数据，请先运行 `python src/fetch_13f.py` 抓取数据
